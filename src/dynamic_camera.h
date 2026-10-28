@@ -47,6 +47,50 @@ struct DynamicCamera {
         // lookahead) appropriately. Next,
         // set the camera center by offsetting the cameraUnadjustedCenter, combining lookAhead.
         // Finally update cameraUnadjustedCenter, but without lookahead.
+
+        sf::Vector2f viewSize = camera.getCameraCenter() + camera.getCameraCenter();
+        sf::Vector2f cameraUnadjustedMin = cameraUnadjustedCenter - (viewSize / 2.0f);
+        float normalizedPlayerPosX;
+        normalizedPlayerPosX = (trackedPosWorld.x - cameraUnadjustedMin.x) / viewSize.x;
+
+        float targetLookAheadX = 0.0f;
+        if (trackedVelocityWorld.x > 0.1f)
+        {
+            targetLookAheadX = lookAhead * viewSize.x;
+        }
+        else if (trackedVelocityWorld.x < -0.1f)
+        {
+            targetLookAheadX = -lookAhead * viewSize.x;
+        }
+
+        //EMA Updates
+        lookaheadState = (alpha * targetLookAheadX) + ((1.0f - alpha) * lookaheadState);
+        float deltaX = trackedPosWorld.x - cameraUnadjustedCenter.x;
+        float appliedDeltaX = 0.0f;
+
+        if (deadZoneX.contains(normalizedPlayerPosX))
+        {
+            appliedDeltaX = 0.0f;
+        }
+        else if (softZoneX.contains(normalizedPlayerPosX))
+        {
+            appliedDeltaX = deltaX * alpha;
+        }
+        else
+        {
+            float edge;
+            if (normalizedPlayerPosX < softZoneX.min) {edge = softZoneX.min;}
+            else {edge = softZoneX.max;}
+            float worldEdgeX = cameraUnadjustedMin.x + (edge * viewSize.x);
+            appliedDeltaX = trackedPosWorld.x - worldEdgeX;
+        }
+
+        cameraUnadjustedCenter.x += appliedDeltaX;
+
+        sf::Vector2f finalCameraCenter;
+        finalCameraCenter.x = cameraUnadjustedCenter.x + lookaheadState;
+        finalCameraCenter.y = cameraUnadjustedCenter.y;
+        camera.setCameraCenter(finalCameraCenter);
     }
 
     float alpha;  // alpha to use for damping of camera position, *as well as* for smoothing of
